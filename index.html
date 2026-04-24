@@ -305,6 +305,83 @@
   .btn-novo { margin-top: 28px; width: 100%; text-align: center;
     padding: 14px; }
 
+  /* ── MODAL SENHA ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.85); z-index: 999;
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal-box {
+    background: #161616; border: none; border-radius: 14px;
+    padding: 32px 28px; width: 90%; max-width: 360px;
+    position: relative; z-index: 0;
+  }
+  .modal-box::before {
+    content: '';
+    position: absolute;
+    inset: 0; border-radius: 14px; padding: 1.5px;
+    background: linear-gradient(135deg, #FF7A00, #FF3D00, #FFB347, #FF7A00);
+    background-size: 300% 300%;
+    animation: borderGlow 4s ease infinite;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    z-index: -1;
+  }
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px; letter-spacing: 3px;
+    color: #fff; margin-bottom: 6px;
+  }
+  .modal-sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .modal-input {
+    width: 100%; background: #1E1E1E;
+    border: 1px solid rgba(255,122,0,0.3);
+    border-radius: 8px; padding: 11px 14px;
+    color: var(--text); font-size: 15px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none; margin-bottom: 8px;
+    transition: border-color .2s, box-shadow .2s;
+    letter-spacing: 3px;
+  }
+  .modal-input:focus {
+    border-color: var(--neon);
+    box-shadow: 0 0 12px rgba(255,122,0,0.2);
+  }
+  .modal-error {
+    font-size: 12px; color: var(--danger);
+    margin-bottom: 14px; min-height: 18px;
+  }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .btn { flex: 1; justify-content: center; }
+
+  /* Campo de definição de senha no editor */
+  .senha-field {
+    background: rgba(255,122,0,0.05);
+    border: 1px solid rgba(255,122,0,0.2);
+    border-radius: 10px; padding: 14px 16px;
+    margin-top: 16px;
+  }
+  .senha-field label {
+    font-size: 11px; font-weight: 600; color: var(--neon);
+    text-transform: uppercase; letter-spacing: 1px;
+    display: block; margin-bottom: 6px;
+  }
+  .senha-field input {
+    width: 100%; background: var(--surface2);
+    border: 1px solid rgba(255,122,0,0.3);
+    border-radius: 8px; padding: 10px 14px;
+    color: var(--text); font-family: 'DM Sans', sans-serif;
+    font-size: 14px; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    letter-spacing: 2px;
+  }
+  .senha-field input:focus {
+    border-color: var(--neon);
+    box-shadow: 0 0 10px rgba(255,122,0,0.15);
+  }
+  .senha-hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
   /* ── MOMENTO TAGS ── */
   .momento-badge {
     display: inline-block; font-size: 10px; font-weight: 700;
@@ -412,6 +489,13 @@
       </div>
     </div>
 
+    <!-- Senha de edição -->
+    <div class="senha-field">
+      <label>🔒 Senha de Edição (opcional)</label>
+      <input type="password" id="ig-senha" placeholder="Digite uma senha para proteger a edição" autocomplete="new-password" />
+      <div class="senha-hint">Quem receber o link precisará desta senha para editar a escala.</div>
+    </div>
+
     <!-- Ações -->
     <div class="actions">
       <button class="btn btn-primary" onclick="gerarLink()">🔗 Gerar Link Compartilhável</button>
@@ -439,9 +523,10 @@
         <p>Preencha a escala e clique em "Pré-visualizar"</p>
       </div>
     </div>
-    <button class="btn btn-secondary btn-novo" onclick="switchTab('editor')">
-      ← Voltar ao Editor
-    </button>
+    <div style="display:flex;gap:10px;margin-top:28px;">
+      <button class="btn btn-ghost" style="flex:1;justify-content:center;" onclick="switchTab('editor')">← Voltar</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="pedirSenhaEditar()">✏️ Editar Escala</button>
+    </div>
   </div>
 
 </div><!-- /container -->
@@ -612,7 +697,7 @@ function coletarDados() {
   return {
     igreja: v('ig-igreja'), data: v('ig-data'), horario: v('ig-horario'),
     tipo: v('ig-tipo'), instrumentista: v('ig-instrumentista'),
-    obs: v('ig-obs'), musicas,
+    obs: v('ig-obs'), senha: v('ig-senha'), musicas,
   };
 }
 
@@ -622,7 +707,7 @@ function v(id) { return document.getElementById(id)?.value?.trim() || ''; }
 function preencherForm(d) {
   sv('ig-igreja', d.igreja); sv('ig-data', d.data); sv('ig-horario', d.horario);
   sv('ig-tipo', d.tipo); sv('ig-instrumentista', d.instrumentista);
-  sv('ig-obs', d.obs);
+  sv('ig-obs', d.obs); sv('ig-senha', d.senha || '');
   document.getElementById('musicas-list').innerHTML = '';
   musicaCount = 0;
   (d.musicas || []).forEach(m => addMusica(m));
@@ -660,7 +745,7 @@ function copiarLink() {
 function limpar() {
   if (!confirm('Limpar tudo?')) return;
   ['ig-igreja','ig-data','ig-horario','ig-tipo',
-   'ig-instrumentista','ig-obs'].forEach(id => {
+   'ig-instrumentista','ig-obs','ig-senha'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -748,7 +833,71 @@ function carregarDaURL() {
   }
 }
 
-carregarDaURL();
+// ── SENHA ────────────────────────────────────────────────
+function pedirSenhaEditar() {
+  const dados = coletarDadosURL();
+  if (!dados || !dados.senha) {
+    switchTab('editor');
+    return;
+  }
+  document.getElementById('modal-senha-input').value = '';
+  document.getElementById('modal-erro').textContent = '';
+  document.getElementById('modal-senha').classList.add('active');
+  setTimeout(() => document.getElementById('modal-senha-input').focus(), 100);
+}
+
+function confirmarSenha() {
+  const dados = coletarDadosURL();
+  const digitada = document.getElementById('modal-senha-input').value;
+  if (digitada === dados.senha) {
+    fecharModal();
+    switchTab('editor');
+  } else {
+    document.getElementById('modal-erro').textContent = '❌ Senha incorreta.';
+    document.getElementById('modal-senha-input').value = '';
+    document.getElementById('modal-senha-input').focus();
+  }
+}
+
+function fecharModal() {
+  document.getElementById('modal-senha').classList.remove('active');
+}
+
+function coletarDadosURL() {
+  const params = new URLSearchParams(location.search);
+  const e = params.get('e');
+  if (!e) return null;
+  try {
+    return JSON.parse(decodeURIComponent(escape(atob(e))));
+  } catch { return null; }
+}
+
+// Inicializar tudo após DOM estar pronto
+document.addEventListener('DOMContentLoaded', function() {
+  carregarDaURL();
+
+  document.getElementById('modal-senha').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+  });
+
+  document.getElementById('modal-senha-input').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') confirmarSenha();
+  });
+});
 </script>
+<!-- Modal de senha -->
+<div class="modal-overlay" id="modal-senha">
+  <div class="modal-box">
+    <div class="modal-title">🔒 Editar Escala</div>
+    <div class="modal-sub">Esta escala está protegida. Digite a senha para editar.</div>
+    <input type="password" class="modal-input" id="modal-senha-input" placeholder="Senha" autocomplete="off" />
+    <div class="modal-error" id="modal-erro"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarSenha()">Entrar</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
